@@ -60,6 +60,14 @@ function faviconFor(app) {
   }
 }
 
+// 手動サムネイルが無ければ、GitHubが自動生成しているリポジトリのOGP画像を流用する
+function thumbnailFor(app) {
+  if (app.thumbnail) return app.thumbnail;
+  const m = (app.repoUrl || "").match(/github\.com\/([^/]+)\/([^/#?]+)/i);
+  if (!m) return "";
+  return `https://opengraph.githubassets.com/1/${m[1]}/${m[2].replace(/\.git$/, "")}`;
+}
+
 /* ============ filtering / sorting ============ */
 function getFilteredApps() {
   let apps = Store.listApps();
@@ -87,6 +95,7 @@ function getFilteredApps() {
     name_asc: (a, b) => a.name.localeCompare(b.name, "ja"),
   };
   apps = [...apps].sort(sorters[state.sort] || sorters.updated_desc);
+  apps.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
   return apps;
 }
 
@@ -151,14 +160,17 @@ function renderList() {
 }
 
 function cardHtml(a) {
-  const fav = faviconFor(a);
+  const thumb = thumbnailFor(a);
   const tags = (a.tags || []).map((t) => `<span class="tag">#${escapeHtml(t)}</span>`).join(" ");
   return `
   <div class="card" data-id="${a.id}">
+    ${thumb ? `<div class="card-thumb"><img src="${escapeHtml(thumb)}" alt="" loading="lazy" onerror="this.remove()"></div>` : ""}
     <div class="card-top">
-      ${fav ? `<img class="card-favicon" src="${fav}" alt="" loading="lazy">` : `<div class="card-favicon"></div>`}
       <div class="card-title-wrap">
-        <div class="card-title">${escapeHtml(a.name || "(無題)")}</div>
+        <div class="card-title-row">
+          <button type="button" class="pin-btn ${a.pinned ? "on" : ""}" data-act="pin" aria-label="ピン留め">${a.pinned ? "⭐" : "☆"}</button>
+          <div class="card-title">${escapeHtml(a.name || "(無題)")}</div>
+        </div>
         ${a.description ? `<div class="card-desc">${escapeHtml(a.description)}</div>` : ""}
       </div>
       ${statusBadge(a.status)}
@@ -183,6 +195,11 @@ function cardHtml(a) {
 function wireCardActions(container) {
   container.querySelectorAll(".card").forEach((card) => {
     const id = card.dataset.id;
+    card.querySelector('[data-act="pin"]')?.addEventListener("click", () => {
+      const app = Store.getApp(id);
+      Store.updateApp(id, { pinned: !app.pinned });
+      renderAll();
+    });
     card.querySelector('[data-act="edit"]')?.addEventListener("click", () => openEditModal(Store.getApp(id)));
     card.querySelector('[data-act="delete"]')?.addEventListener("click", () => {
       if (confirm("このアプリの記録を削除しますか？")) {
@@ -235,19 +252,54 @@ function renderTimeline() {
   el.innerHTML = rows.join("");
 }
 
+/* ============ rendering: group (タグ重複の可視化) ============ */
+function renderGroup() {
+  const el = document.getElementById("app-group");
+  const apps = getFilteredApps();
+  if (!apps.length) {
+    el.innerHTML = `<div class="empty">📦<div>まだアプリが登録されていません</div></div>`;
+    return;
+  }
+  const byTag = new Map();
+  const untagged = [];
+  apps.forEach((a) => {
+    if (!a.tags || !a.tags.length) { untagged.push(a); return; }
+    a.tags.forEach((t) => {
+      if (!byTag.has(t)) byTag.set(t, []);
+      byTag.get(t).push(a);
+    });
+  });
+  const groups = [...byTag.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], "ja"));
+
+  const blockHtml = (title, items, isOverlap) => `
+    <div class="group-block ${isOverlap ? "overlap" : ""}">
+      <div class="group-head">
+        <h3>#${escapeHtml(title)}</h3>
+        ${isOverlap ? `<span class="group-warn">${items.length}件 重複の可能性</span>` : `<span class="muted">${items.length}件</span>`}
+      </div>
+      <ul class="group-items">
+        ${items.map((a) => `<li>${statusBadge(a.status)} ${escapeHtml(a.name || "(無題)")}</li>`).join("")}
+      </ul>
+    </div>`;
+
+  const html = groups.map(([tag, items]) => blockHtml(tag, items, items.length >= 2)).join("");
+  const untaggedHtml = untagged.length ? blockHtml("タグなし", untagged, false) : "";
+  el.innerHTML = html + untaggedHtml || `<div class="empty">📦<div>タグが登録されていません</div></div>`;
+}
+
 /* ============ render all ============ */
 function renderAll() {
   renderSummary();
   renderTagChips();
-  if (state.view === "list") {
-    document.getElementById("app-list").hidden = false;
-    document.getElementById("app-timeline").hidden = true;
-    renderList();
-  } else {
-    document.getElementById("app-list").hidden = true;
-    document.getElementById("app-timeline").hidden = false;
-    renderTimeline();
-  }
+  const listEl = document.getElementById("app-list");
+  const timelineEl = document.getElementById("app-timeline");
+  const groupEl = document.getElementById("app-group");
+  listEl.hidden = state.view !== "list";
+  timelineEl.hidden = state.view !== "timeline";
+  groupEl.hidden = state.view !== "group";
+  if (state.view === "list") renderList();
+  else if (state.view === "timeline") renderTimeline();
+  else renderGroup();
 }
 
 /* ============ modal: add/edit ============ */
@@ -271,6 +323,9 @@ function openEditModal(app) {
         </label>
         <label>リポジトリURL
           <input name="repoUrl" type="url" placeholder="https://github.com/xxxx/xxxx" value="${escapeHtml(a.repoUrl || "")}">
+        </label>
+        <label>サムネイル画像URL（空欄ならリポジトリのOGP画像を自動使用）
+          <input name="thumbnail" type="url" placeholder="https://..." value="${escapeHtml(a.thumbnail || "")}">
         </label>
         <label>状態
           <select name="status">
@@ -309,6 +364,7 @@ function openEditModal(app) {
       description: fd.get("description").trim(),
       pagesUrl: fd.get("pagesUrl").trim(),
       repoUrl,
+      thumbnail: fd.get("thumbnail").trim(),
       repoName: deriveRepoName(repoUrl),
       status: fd.get("status"),
       techStack: fd.get("techStack").trim(),
@@ -357,6 +413,16 @@ function openSettingsModal() {
         <div id="embed-preview"></div>
       </div>
 
+      <div class="set">
+        <h3>インポート（バックアップの復元）</h3>
+        <div class="hint">「JSONをダウンロード」で書き出したファイルを読み込みます。データは端末内のみの保存なので、ブラウザのデータを消す前に定期的にバックアップしておくと安心です。</div>
+        <input type="file" id="import-file" accept="application/json" class="hint" style="display:block; margin-bottom:8px;">
+        <div class="set-actions">
+          <button type="button" class="btn-ghost" id="import-merge">追加・更新で読み込む</button>
+          <button type="button" class="btn-danger" id="import-replace">全部置き換えて読み込む</button>
+        </div>
+      </div>
+
       <div class="form-actions" style="margin-top:16px;">
         <button type="button" class="btn-ghost" id="close-settings">閉じる</button>
       </div>
@@ -394,6 +460,39 @@ function openSettingsModal() {
     }
     document.getElementById("embed-preview").innerHTML = `<div class="code-box">${escapeHtml(html)}</div>`;
   });
+
+  async function readImportFile() {
+    const input = document.getElementById("import-file");
+    const file = input.files[0];
+    if (!file) { toast("ファイルを選択してください"); return null; }
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      return Array.isArray(parsed) ? parsed : parsed.apps;
+    } catch {
+      toast("JSONの読み込みに失敗しました");
+      return null;
+    }
+  }
+
+  document.getElementById("import-merge").addEventListener("click", async () => {
+    const apps = await readImportFile();
+    if (!apps) return;
+    const count = Store.importApps(apps, "merge");
+    toast(`読み込みました（合計${count}件）`);
+    close();
+    renderAll();
+  });
+
+  document.getElementById("import-replace").addEventListener("click", async () => {
+    const apps = await readImportFile();
+    if (!apps) return;
+    if (!confirm("現在の一覧を全部消して、読み込んだ内容に置き換えます。よろしいですか？")) return;
+    const count = Store.importApps(apps, "replace");
+    toast(`置き換えました（合計${count}件）`);
+    close();
+    renderAll();
+  });
 }
 
 /* ============ github sync ============ */
@@ -419,6 +518,32 @@ async function handleSync() {
   }
 }
 
+/* ============ bulk health check ============ */
+async function handleBulkHealth() {
+  const btn = document.getElementById("health-all-btn");
+  const targets = Store.listApps().filter((a) => a.pagesUrl);
+  if (!targets.length) { toast("公開URLが設定されたアプリがありません"); return; }
+  btn.disabled = true;
+  btn.textContent = "…";
+  let ok = 0;
+  let fail = 0;
+  const CONCURRENCY = 4;
+  let cursor = 0;
+  async function worker() {
+    while (cursor < targets.length) {
+      const app = targets[cursor++];
+      const result = await checkHealth(app.pagesUrl);
+      Store.updateApp(app.id, { healthStatus: result, healthCheckedAt: new Date().toISOString() });
+      if (result === "ok") ok += 1; else fail += 1;
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, targets.length) }, worker));
+  btn.disabled = false;
+  btn.textContent = "📶";
+  renderAll();
+  toast(`疎通確認完了: 到達${ok}件 / 失敗${fail}件`);
+}
+
 /* ============ init ============ */
 function init() {
   document.getElementById("search-input").addEventListener("input", (e) => {
@@ -442,6 +567,7 @@ function init() {
   document.getElementById("fab").addEventListener("click", () => openEditModal(null));
   document.getElementById("settings-btn").addEventListener("click", openSettingsModal);
   document.getElementById("sync-btn").addEventListener("click", handleSync);
+  document.getElementById("health-all-btn").addEventListener("click", handleBulkHealth);
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(() => {});

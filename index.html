@@ -19,6 +19,7 @@
   <h1 class="app-title">作った物管理</h1>
   <div style="display:flex; gap:8px;">
     <button id="sync-btn" class="icon-btn" type="button" aria-label="GitHubと同期">⟳</button>
+    <button id="health-all-btn" class="icon-btn" type="button" aria-label="全件疎通確認">📶</button>
     <button id="settings-btn" class="icon-btn" type="button" aria-label="設定">⚙️</button>
   </div>
 </header>
@@ -48,12 +49,14 @@
   <div class="seg view-seg">
     <label><input type="radio" name="view" value="list" checked><span>一覧</span></label>
     <label><input type="radio" name="view" value="timeline"><span>タイムライン</span></label>
+    <label><input type="radio" name="view" value="group"><span>グループ</span></label>
   </div>
 
   <div class="summary-bar" id="summary-bar"></div>
 
   <div class="list" id="app-list"></div>
   <div class="timeline" id="app-timeline" hidden></div>
+  <div class="group-view" id="app-group" hidden></div>
 
   <div class="page-foot-space"></div>
 </main>

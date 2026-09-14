@@ -158,10 +158,8 @@ const SEED_APPS = [
   },
 ];
 
-function buildSeedDB() {
-  const db = defaultDB();
-  const now = todayISO();
-  db.apps = SEED_APPS.map((seed) => ({
+function blankApp() {
+  return {
     id: uid(),
     name: "",
     description: "",
@@ -173,10 +171,21 @@ function buildSeedDB() {
     techStack: "",
     notes: "",
     stars: null,
-    source: seed.repoName ? "github" : "manual",
-    updatedAt: seed.createdAt || now,
+    source: "manual",
+    pinned: false,
+    thumbnail: "",
     healthStatus: "unknown",
     healthCheckedAt: null,
+  };
+}
+
+function buildSeedDB() {
+  const db = defaultDB();
+  const now = todayISO();
+  db.apps = SEED_APPS.map((seed) => ({
+    ...blankApp(),
+    source: seed.repoName ? "github" : "manual",
+    updatedAt: seed.createdAt || now,
     ...seed,
   }));
   return db;
@@ -232,25 +241,7 @@ const Store = {
   addApp(fields) {
     const db = loadDB();
     const now = todayISO();
-    const app = {
-      id: uid(),
-      name: "",
-      description: "",
-      pagesUrl: "",
-      repoUrl: "",
-      repoName: "",
-      tags: [],
-      status: "published",
-      techStack: "",
-      notes: "",
-      stars: null,
-      source: "manual",
-      createdAt: now,
-      updatedAt: now,
-      healthStatus: "unknown",
-      healthCheckedAt: null,
-      ...fields,
-    };
+    const app = { ...blankApp(), createdAt: now, updatedAt: now, ...fields };
     db.apps.unshift(app);
     saveDB(db);
     return app;
@@ -276,25 +267,7 @@ const Store = {
     const idx = db.apps.findIndex((a) => a.repoName === repoName);
     const now = todayISO();
     if (idx === -1) {
-      const app = {
-        id: uid(),
-        name: repoName,
-        description: "",
-        pagesUrl: "",
-        repoUrl: "",
-        repoName,
-        tags: [],
-        status: "published",
-        techStack: "",
-        notes: "",
-        stars: null,
-        source: "github",
-        createdAt: now,
-        updatedAt: now,
-        healthStatus: "unknown",
-        healthCheckedAt: null,
-        ...fields,
-      };
+      const app = { ...blankApp(), name: repoName, repoName, source: "github", createdAt: now, updatedAt: now, ...fields };
       db.apps.unshift(app);
       saveDB(db);
       return { app, created: true };
@@ -312,6 +285,26 @@ const Store = {
 
   exportJSON() {
     return JSON.stringify(loadDB().apps, null, 2);
+  },
+
+  // mode "merge": idまたはrepoNameが一致する既存アプリは更新、なければ追加。
+  // mode "replace": 現在の一覧を読み込んだ内容で完全に置き換える。
+  importApps(importedApps, mode = "merge") {
+    if (!Array.isArray(importedApps)) throw new Error("JSONの形式が不正です（配列ではありません）");
+    const db = loadDB();
+    const normalize = (imp) => ({ ...blankApp(), createdAt: todayISO(), updatedAt: todayISO(), ...imp, id: imp.id || uid() });
+
+    if (mode === "replace") {
+      db.apps = importedApps.map(normalize);
+    } else {
+      importedApps.forEach((imp) => {
+        const idx = db.apps.findIndex((a) => a.id === imp.id || (imp.repoName && a.repoName === imp.repoName));
+        if (idx === -1) db.apps.unshift(normalize(imp));
+        else db.apps[idx] = { ...db.apps[idx], ...imp };
+      });
+    }
+    saveDB(db);
+    return db.apps.length;
   },
 
   exportPublishedEmbed() {
