@@ -23,17 +23,16 @@ async function syncFromGithub(username) {
   let updated = 0;
   for (const repo of repos) {
     if (repo.fork) continue;
+    const existing = Store.listApps().find((a) => a.repoName === repo.name);
     const fields = {
       repoUrl: repo.html_url,
-      description: repo.description || "",
+      // GitHub側のdescriptionが空のときは手入力済みの説明を消さない
+      description: repo.description || existing?.description || "",
       stars: repo.stargazers_count ?? null,
       updatedAt: repo.pushed_at || repo.updated_at,
-      pagesUrl: repo.has_pages ? guessPagesUrl(username, repo.name) : "",
+      pagesUrl: repo.has_pages ? guessPagesUrl(username, repo.name) : existing?.pagesUrl || "",
     };
-    const existing = Store.listApps().find((a) => a.repoName === repo.name);
-    if (existing && existing.createdAt) {
-      // keep manually-set createdAt if already present, otherwise seed from repo
-    } else {
+    if (!existing || !existing.createdAt) {
       fields.createdAt = repo.created_at;
     }
     const { created: wasCreated } = Store.upsertByRepoName(repo.name, fields);
