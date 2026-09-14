@@ -1,4 +1,6 @@
-const CACHE = "portfolio-shell-v1";
+// sw.js自体のバイト列が変わらないとブラウザは新SWを検知せずinstallも走らないため、
+// SHELL配下のJS/CSSを変更したらこのバージョンを必ず上げること(古いキャッシュが残り続ける)。
+const CACHE = "portfolio-shell-v2";
 const SHELL = [
   "./",
   "./index.html",
