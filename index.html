@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>作った物管理 | GitHub Pagesアプリのポートフォリオ台帳</title>
+<meta name="description" content="自分が作ったGitHub Pagesアプリを一覧化し、状態・タグ・メモを管理するPWA。GitHub連携で自動同期もできる。">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4f8cff">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+<header class="app-header">
+  <h1 class="app-title">作った物管理</h1>
+  <div style="display:flex; gap:8px;">
+    <button id="sync-btn" class="icon-btn" type="button" aria-label="GitHubと同期">⟳</button>
+    <button id="settings-btn" class="icon-btn" type="button" aria-label="設定">⚙️</button>
+  </div>
+</header>
+
+<main class="page-inner">
+
+  <div class="filter-bar">
+    <input id="search-input" type="search" placeholder="名前・説明・タグで検索" aria-label="検索">
+    <div class="filter-row">
+      <select id="status-filter" aria-label="状態で絞り込み">
+        <option value="">すべての状態</option>
+        <option value="planning">構想中</option>
+        <option value="developing">開発中</option>
+        <option value="published">公開中</option>
+        <option value="stopped">メンテ停止</option>
+      </select>
+      <select id="sort-select" aria-label="並び替え">
+        <option value="updated_desc">更新が新しい順</option>
+        <option value="created_desc">作成が新しい順</option>
+        <option value="created_asc">作成が古い順</option>
+        <option value="name_asc">名前順</option>
+      </select>
+    </div>
+    <div id="tag-chips" class="chip-row"></div>
+  </div>
+
+  <div class="seg view-seg">
+    <label><input type="radio" name="view" value="list" checked><span>一覧</span></label>
+    <label><input type="radio" name="view" value="timeline"><span>タイムライン</span></label>
+  </div>
+
+  <div class="summary-bar" id="summary-bar"></div>
+
+  <div class="list" id="app-list"></div>
+  <div class="timeline" id="app-timeline" hidden></div>
+
+  <div class="page-foot-space"></div>
+</main>
+
+<button class="fab" id="fab" type="button" aria-label="アプリを追加">＋</button>
+
+<div id="modal-root"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

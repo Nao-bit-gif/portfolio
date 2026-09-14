@@ -1,0 +1,16 @@
+{
+  "name": "作品管理 - GitHub Pagesアプリのポートフォリオ台帳",
+  "short_name": "作品管理",
+  "description": "自分が作ったGitHub Pagesアプリを一覧化し、状態・タグ・メモを管理する台帳アプリ。",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f1320",
+  "theme_color": "#4f8cff",
+  "icons": [
+    { "src": "icon.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable any" }
+  ]
+}
