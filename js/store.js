@@ -156,6 +156,27 @@ const SEED_APPS = [
     tags: ["Python", "自動化", "株"],
     createdAt: "2026-09-13T00:00:00.000Z",
   },
+  {
+    name: "次の電車",
+    description: "登録した駅の次の電車を開いた瞬間に表示。タップすると駅までのルートごとの出発目安もわかる。",
+    pagesUrl: "https://nao-bit-gif.github.io/train/",
+    repoUrl: "https://github.com/Nao-bit-gif/train",
+    repoName: "train",
+    status: "published",
+    techStack: "vanilla JS / PWA",
+    tags: ["PWA", "交通"],
+    createdAt: "2026-09-16T00:00:00.000Z",
+  },
+  {
+    name: "騰落レシオ",
+    description: "騰落レシオの数値表示並びにデータ蓄積。",
+    pagesUrl: "",
+    repoUrl: "https://github.com/Nao-bit-gif/Touraku-resio",
+    repoName: "Touraku-resio",
+    status: "developing",
+    tags: ["株"],
+    createdAt: "2026-09-17T00:00:00.000Z",
+  },
 ];
 
 function blankApp() {
