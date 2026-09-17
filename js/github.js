@@ -1,4 +1,4 @@
-import { Store } from "./store.js";
+import { Store, SEED_BY_REPO_NAME } from "./store.js";
 
 function guessPagesUrl(username, repo) {
   const isUserSite = repo.toLowerCase() === `${username.toLowerCase()}.github.io`;
@@ -24,14 +24,22 @@ async function syncFromGithub(username) {
   for (const repo of repos) {
     if (repo.fork) continue;
     const existing = Store.listApps().find((a) => a.repoName === repo.name);
+    // 既存アプリが1件も無いとき(＝このブラウザで初めて見つかったrepo)だけ、
+    // キュレーション済みの初期データ(SEED_APPS)を下敷きに使う。
+    const seed = !existing ? SEED_BY_REPO_NAME.get(repo.name) : null;
     const fields = {
       repoUrl: repo.html_url,
-      // GitHub側のdescriptionが空のときは手入力済みの説明を消さない
-      description: repo.description || existing?.description || "",
+      // GitHub側のdescriptionが空のときは、手入力済み→キュレーション済みの順で説明を残す
+      description: repo.description || existing?.description || seed?.description || "",
       stars: repo.stargazers_count ?? null,
       updatedAt: repo.pushed_at || repo.updated_at,
       pagesUrl: repo.has_pages ? guessPagesUrl(username, repo.name) : existing?.pagesUrl || "",
     };
+    if (seed) {
+      if (seed.name) fields.name = seed.name;
+      if (seed.tags) fields.tags = seed.tags;
+      if (seed.techStack) fields.techStack = seed.techStack;
+    }
     if (!existing || !existing.createdAt) {
       fields.createdAt = repo.created_at;
     }

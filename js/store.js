@@ -344,4 +344,9 @@ const Store = {
   },
 };
 
-export { Store, STATUS };
+// repoName -> キュレーション済みの初期メタデータ(name/description/tags等)。
+// GitHub同期で「まだ一度も登録されていないrepo」を新規追加するとき、
+// GitHub API側にdescriptionが無くても良い説明・タグで登録できるように使う。
+const SEED_BY_REPO_NAME = new Map(SEED_APPS.filter((s) => s.repoName).map((s) => [s.repoName, s]));
+
+export { Store, STATUS, SEED_BY_REPO_NAME };
